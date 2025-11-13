@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title><%= title %></title>
+  </head>
+  <body>
+    <!-- ============================================================================
+         HEADER SECTION
+         ============================================================================ -->
+    <header>
+      <h1>Strenger Talk</h1>
+      <nav>
+        <ul>
+          <li><a href="/">Home</a></li>
+          <li><a href="/about">About</a></li>
+          <li><a href="/contact">Contact</a></li>
+        </ul>
+      </nav>
+    </header>
+
+    <hr />
+
+    <!-- ============================================================================
+         MAIN CONTENT SECTION
+         ============================================================================ -->
+    <main>
+      <h2>Welcome to Strenger Talk!</h2>
+
+      <p><%= message %></p>
+
+      <section>
+        <h3>Server Information</h3>
+        <ul>
+          <li><strong>Status:</strong> Running</li>
+          <li><strong>Server Time:</strong> <%= serverTime %></li>
+          <li><strong>Uptime:</strong> <%= uptime.toFixed(2) %> seconds</li>
+        </ul>
+      </section>
+
+      <section>
+        <h3>Available Routes</h3>
+        <h4>Views (HTML Pages)</h4>
+        <ul>
+          <li>GET / - Home page</li>
+          <li>GET /about - About page</li>
+          <li>GET /contact - Contact page</li>
+        </ul>
+
+        <h4>API Endpoints (JSON)</h4>
+        <ul>
+          <li>GET /api/status - Server status information</li>
+          <li>GET /api/info - Application information</li>
+          <li>POST /api/contact - Submit contact form</li>
+        </ul>
+      </section>
+    </main>
+
+    <hr />
+
+    <!-- ============================================================================
+         FOOTER SECTION
+         ============================================================================ -->
+    <footer>
+      <p>&copy; 2025 Strenger Talk | Express.js with MVC Pattern</p>
+    </footer>
+  </body>
+</html>

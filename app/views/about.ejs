@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title><%= title %></title>
+  </head>
+  <body>
+    <!-- ============================================================================
+         HEADER SECTION
+         ============================================================================ -->
+    <header>
+      <h1>Strenger Talk</h1>
+      <nav>
+        <ul>
+          <li><a href="/">Home</a></li>
+          <li><a href="/about">About</a></li>
+          <li><a href="/contact">Contact</a></li>
+        </ul>
+      </nav>
+    </header>
+
+    <hr />
+
+    <!-- ============================================================================
+         MAIN CONTENT SECTION
+         ============================================================================ -->
+    <main>
+      <h2>About Strenger Talk</h2>
+
+      <section>
+        <h3>Application Details</h3>
+        <ul>
+          <li><strong>Application Name:</strong> <%= appName %></li>
+          <li><strong>Version:</strong> <%= version %></li>
+          <li><strong>Created:</strong> <%= createdAt %></li>
+        </ul>
+      </section>
+
+      <section>
+        <h3>Description</h3>
+        <p><%= description %></p>
+      </section>
+
+      <section>
+        <h3>Technology Stack</h3>
+        <ul>
+          <li>Node.js - JavaScript runtime</li>
+          <li>Express.js - Web framework</li>
+          <li>EJS - Template engine</li>
+          <li>Nodemon - Development auto-restart</li>
+        </ul>
+      </section>
+
+      <section>
+        <h3>Architecture</h3>
+        <p>
+          This application follows the
+          <strong>MVC (Model-View-Controller)</strong> architectural pattern:
+        </p>
+        <ul>
+          <li>
+            <strong>Models:</strong> Data and business logic representations
+          </li>
+          <li><strong>Views:</strong> EJS templates for rendering HTML</li>
+          <li>
+            <strong>Controllers:</strong> Business logic and request handling
+          </li>
+          <li><strong>Routes:</strong> URL mapping to controllers</li>
+        </ul>
+      </section>
+    </main>
+
+    <hr />
+
+    <!-- ============================================================================
+         FOOTER SECTION
+         ============================================================================ -->
+    <footer>
+      <p>&copy; 2025 Strenger Talk | Express.js with MVC Pattern</p>
+    </footer>
+  </body>
+</html>
