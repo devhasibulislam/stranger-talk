@@ -37,6 +37,3 @@ build/
 
 # OS files
 Thumbs.db
-
-# Lock files
-package-lock.json
