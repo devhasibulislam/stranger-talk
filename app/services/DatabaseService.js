@@ -10,6 +10,12 @@
  */
 
 const { query } = require("../../config/dbConfig");
+const config = require("../../config/config");
+
+/**
+ * Check if database is enabled
+ */
+const isDatabaseEnabled = () => config.database.enabled;
 
 /**
  * Save room information to database
@@ -19,6 +25,10 @@ const { query } = require("../../config/dbConfig");
  * @returns {Promise<Object>}
  */
 const saveRoom = async (roomId, user1SocketId, user2SocketId) => {
+  if (!isDatabaseEnabled()) {
+    return null; // Database disabled, skip
+  }
+  
   try {
     const result = await query(
       `INSERT INTO rooms (id, user1_socket_id, user2_socket_id, status, created_at)
@@ -39,6 +49,10 @@ const saveRoom = async (roomId, user1SocketId, user2SocketId) => {
  * @returns {Promise<Object>}
  */
 const closeRoom = async (roomId) => {
+  if (!isDatabaseEnabled()) {
+    return null; // Database disabled, skip
+  }
+  
   try {
     const result = await query(
       `UPDATE rooms 
@@ -59,6 +73,10 @@ const closeRoom = async (roomId) => {
  * @returns {Promise<number>}
  */
 const getActiveRoomsCount = async () => {
+  if (!isDatabaseEnabled()) {
+    return 0; // Database disabled, return 0
+  }
+  
   try {
     const result = await query(
       `SELECT COUNT(*) as count 
@@ -77,6 +95,10 @@ const getActiveRoomsCount = async () => {
  * @returns {Promise<number>}
  */
 const getTotalRoomsCreated = async () => {
+  if (!isDatabaseEnabled()) {
+    return 0; // Database disabled, return 0
+  }
+  
   try {
     const result = await query(`SELECT COUNT(*) as count FROM rooms`);
     return parseInt(result.rows[0].count);
@@ -92,6 +114,10 @@ const getTotalRoomsCreated = async () => {
  * @returns {Promise<void>}
  */
 const incrementStatistic = async (metricName) => {
+  if (!isDatabaseEnabled()) {
+    return; // Database disabled, skip
+  }
+  
   try {
     await query(
       `INSERT INTO statistics (metric_name, metric_value, updated_at)
@@ -113,6 +139,10 @@ const incrementStatistic = async (metricName) => {
  * @returns {Promise<number>}
  */
 const getStatistic = async (metricName) => {
+  if (!isDatabaseEnabled()) {
+    return 0; // Database disabled, return 0
+  }
+  
   try {
     const result = await query(
       `SELECT metric_value FROM statistics WHERE metric_name = $1`,
@@ -156,6 +186,10 @@ const getAllStatistics = async () => {
  * @returns {Promise<Array>}
  */
 const getRecentRooms = async () => {
+  if (!isDatabaseEnabled()) {
+    return []; // Database disabled, return empty array
+  }
+  
   try {
     const result = await query(
       `SELECT id, status, created_at, closed_at

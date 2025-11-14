@@ -119,6 +119,18 @@ class VoiceChatClient {
         this.ui.queuePosition.style.display = "none";
       }
 
+      // Ensure we have local stream before setting up peer connection
+      if (!this.localStream) {
+        console.log("Local stream not ready, requesting microphone...");
+        try {
+          await this.getMicrophone();
+        } catch (error) {
+          console.error("Failed to get microphone:", error);
+          this.showError("Microphone access required for voice chat");
+          return;
+        }
+      }
+
       await this.setupPeerConnection();
 
       if (this.isInitiator) {
@@ -245,13 +257,21 @@ class VoiceChatClient {
       this.peerConnection = new RTCPeerConnection({
         iceServers: this.iceServers,
         iceCandidatePoolSize: 10,
+        iceTransportPolicy: 'all', // Use both STUN and TURN
       });
 
       // Add local stream tracks to peer connection
       if (this.localStream) {
-        this.localStream.getTracks().forEach((track) => {
-          this.peerConnection.addTrack(track, this.localStream);
+        const tracks = this.localStream.getTracks();
+        console.log("Adding local tracks to peer connection:", tracks.length);
+        
+        tracks.forEach((track) => {
+          console.log("Adding track:", track.kind, "enabled:", track.enabled);
+          const sender = this.peerConnection.addTrack(track, this.localStream);
+          console.log("Track added, sender:", sender);
         });
+      } else {
+        console.error("No local stream available to add to peer connection");
       }
 
       // Handle ICE candidates
@@ -268,17 +288,20 @@ class VoiceChatClient {
       // Handle remote stream
       this.peerConnection.ontrack = (event) => {
         console.log("✓ Received remote stream");
-        this.remoteStream = event.streams[0];
-        this.playRemoteAudio();
-        this.updateStatus("Connected! You can now talk", "success");
-        this.isConnected = true;
-        this.isConnecting = false;
-        this.setUIState("connected");
+        console.log("Track kind:", event.track.kind);
+        console.log("Track enabled:", event.track.enabled);
+        console.log("Streams:", event.streams);
         
-        // Add click listener to handle autoplay policy
-        document.addEventListener('click', () => {
+        if (event.streams && event.streams[0]) {
+          this.remoteStream = event.streams[0];
           this.playRemoteAudio();
-        }, { once: true });
+          this.updateStatus("Connected! You can now talk", "success");
+          this.isConnected = true;
+          this.isConnecting = false;
+          this.setUIState("connected");
+        } else {
+          console.error("No remote stream received");
+        }
       };
 
       // Handle connection state changes
@@ -323,13 +346,17 @@ class VoiceChatClient {
   async createOffer() {
     try {
       console.log("Creating offer...");
+      console.log("Local stream tracks:", this.localStream?.getTracks());
+      console.log("Peer connection senders:", this.peerConnection.getSenders());
 
       const offer = await this.peerConnection.createOffer({
         offerToReceiveAudio: true,
         offerToReceiveVideo: false,
       });
 
+      console.log("Offer created:", offer);
       await this.peerConnection.setLocalDescription(offer);
+      console.log("Local description set");
 
       // Send offer to peer through signaling server
       this.socket.emit("offer", {
@@ -350,14 +377,19 @@ class VoiceChatClient {
   async handleOffer(offer) {
     try {
       console.log("Handling received offer...");
+      console.log("Offer SDP:", offer.sdp);
 
       await this.peerConnection.setRemoteDescription(
         new RTCSessionDescription(offer)
       );
+      console.log("Remote description set from offer");
 
       // Create answer
       const answer = await this.peerConnection.createAnswer();
+      console.log("Answer created:", answer);
+      
       await this.peerConnection.setLocalDescription(answer);
+      console.log("Local description set from answer");
 
       // Send answer to peer through signaling server
       this.socket.emit("answer", {
@@ -378,12 +410,16 @@ class VoiceChatClient {
   async handleAnswer(answer) {
     try {
       console.log("Handling received answer...");
+      console.log("Answer SDP:", answer.sdp);
 
       await this.peerConnection.setRemoteDescription(
         new RTCSessionDescription(answer)
       );
 
       console.log("✓ Answer processed");
+      console.log("Remote description:", this.peerConnection.remoteDescription);
+      console.log("Connection state:", this.peerConnection.connectionState);
+      console.log("ICE connection state:", this.peerConnection.iceConnectionState);
     } catch (error) {
       console.error("✗ Error handling answer:", error);
       this.showError("Failed to handle connection answer");
@@ -413,9 +449,43 @@ class VoiceChatClient {
     const remoteAudio = document.getElementById("remote-audio");
     if (remoteAudio && this.remoteStream) {
       remoteAudio.srcObject = this.remoteStream;
-      remoteAudio.play().catch((error) => {
-        console.error("Error playing remote audio:", error);
-      });
+      remoteAudio.volume = 1.0; // Set volume to maximum
+      remoteAudio.muted = false; // Ensure not muted
+      
+      // Try to play immediately
+      const playPromise = remoteAudio.play();
+      
+      if (playPromise !== undefined) {
+        playPromise
+          .then(() => {
+            console.log("✓ Remote audio playing successfully");
+            console.log("Audio tracks:", this.remoteStream.getAudioTracks());
+            console.log("Audio element volume:", remoteAudio.volume);
+            console.log("Audio element muted:", remoteAudio.muted);
+          })
+          .catch((error) => {
+            console.error("✗ Error playing remote audio:", error);
+            console.log("Autoplay blocked. Waiting for user interaction...");
+            
+            // Add one-time click handler to resume playback
+            const resumeAudio = () => {
+              remoteAudio.play()
+                .then(() => {
+                  console.log("✓ Audio resumed after user interaction");
+                  this.showError("Audio is now playing. You should hear your partner.");
+                })
+                .catch(err => console.error("Failed to resume audio:", err));
+              document.removeEventListener('click', resumeAudio);
+            };
+            
+            document.addEventListener('click', resumeAudio, { once: true });
+            this.showError("Click anywhere to enable audio playback");
+          });
+      }
+    } else {
+      console.error("Remote audio element or stream not found");
+      console.log("Remote audio element:", remoteAudio);
+      console.log("Remote stream:", this.remoteStream);
     }
   }
 

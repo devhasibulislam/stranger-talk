@@ -192,16 +192,20 @@ app.use((err, req, res, next) => {
  */
 const startServer = async () => {
   try {
-    // Test database connection
-    const dbConnected = await testDbConnection();
+    // Test database connection only if enabled
+    if (config.database.enabled) {
+      const dbConnected = await testDbConnection();
 
-    if (dbConnected) {
-      // Initialize database tables
-      await initializeTables();
+      if (dbConnected) {
+        // Initialize database tables
+        await initializeTables();
+      } else {
+        console.warn(
+          "⚠ PostgreSQL: Connection failed, continuing without database"
+        );
+      }
     } else {
-      console.warn(
-        "⚠ PostgreSQL: Connection failed, continuing without database"
-      );
+      console.log("ℹ PostgreSQL: Disabled (DB_ENABLED=false)");
     }
 
     // Start HTTP server

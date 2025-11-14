@@ -12,33 +12,49 @@
 const { Pool } = require("pg");
 const config = require("./config");
 
-/**
- * Create PostgreSQL connection pool
- */
-const poolConfig = {
-  host: config.database.host,
-  port: config.database.port,
-  database: config.database.database,
-  user: config.database.user,
-  min: config.database.min,
-  max: config.database.max,
-  idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 2000,
-};
+let pool = null;
 
-// Only add password if it exists and is not empty
-if (config.database.password) {
-  poolConfig.password = config.database.password;
+// Only create pool if database is enabled
+if (config.database.enabled) {
+  /**
+   * Create PostgreSQL connection pool
+   */
+  const poolConfig = {
+    host: config.database.host,
+    port: config.database.port,
+    database: config.database.database,
+    user: config.database.user,
+    min: config.database.min,
+    max: config.database.max,
+    idleTimeoutMillis: 30000,
+    connectionTimeoutMillis: 2000,
+  };
+
+  // Only add password if it exists and is not empty
+  if (config.database.password && config.database.password.trim() !== '') {
+    poolConfig.password = config.database.password;
+  } else {
+    // For local development without password, use empty string
+    poolConfig.password = '';
+  }
+
+  if (config.isDevelopment) {
+    console.log("PostgreSQL Pool Config:", {
+      ...poolConfig,
+      password: poolConfig.password ? "***" : undefined,
+    });
+  }
+
+  pool = new Pool(poolConfig);
+} else {
+  // Create a mock pool that does nothing
+  pool = {
+    connect: async () => { throw new Error("Database is disabled"); },
+    query: async () => { throw new Error("Database is disabled"); },
+    end: async () => {},
+    on: () => {},
+  };
 }
-
-if (config.isDevelopment) {
-  console.log("PostgreSQL Pool Config:", {
-    ...poolConfig,
-    password: poolConfig.password ? "***" : undefined,
-  });
-}
-
-const pool = new Pool(poolConfig);
 
 /**
  * Pool event handlers

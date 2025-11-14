@@ -28,6 +28,7 @@ const config = {
 
   // PostgreSQL Database Configuration
   database: {
+    enabled: process.env.DB_ENABLED === "true",
     host: process.env.DB_HOST || "localhost",
     port: parseInt(process.env.DB_PORT || "5432", 10),
     database: process.env.DB_NAME || "strenger_talk_dev",
