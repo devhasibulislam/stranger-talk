@@ -3,67 +3,227 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title><%= title %></title>
+    <meta
+      name="description"
+      content="Random voice chat with strangers using WebRTC peer-to-peer technology"
+    />
+    <title>Strenger Talk - Random Voice Chat</title>
+    <link rel="stylesheet" href="/styles.css" />
   </head>
   <body>
+    <div class="container">
+      <!-- ============================================================================
+           HEADER SECTION
+           ============================================================================ -->
+      <header class="header">
+        <div class="logo">
+          <svg
+            class="logo-icon"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+          >
+            <path
+              d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"
+            ></path>
+            <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+            <line x1="12" y1="19" x2="12" y2="23"></line>
+            <line x1="8" y1="23" x2="16" y2="23"></line>
+          </svg>
+          <h1>Strenger Talk</h1>
+        </div>
+        <p class="tagline">Random Voice Chat with Strangers</p>
+      </header>
+
+      <!-- ============================================================================
+           MAIN CHAT INTERFACE
+           ============================================================================ -->
+      <main class="chat-container">
+        <!-- Status Section -->
+        <div class="status-section">
+          <div class="status-card">
+            <div class="status-header">
+              <div
+                id="status-indicator"
+                class="status-indicator status-idle"
+              ></div>
+              <h2 id="status-text" class="status-text">Ready to connect</h2>
+            </div>
+            <p
+              id="queue-position"
+              class="queue-position"
+              style="display: none"
+            ></p>
+            <div
+              id="error-message"
+              class="error-message"
+              style="display: none"
+            ></div>
+          </div>
+        </div>
+
+        <!-- Volume Meter -->
+        <div class="volume-section">
+          <label class="volume-label">
+            <svg
+              class="icon"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+            >
+              <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+              <path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+            </svg>
+            Your Microphone
+          </label>
+          <div id="volume-meter" class="volume-meter">
+            <div id="volume-fill" class="volume-fill"></div>
+          </div>
+        </div>
+
+        <!-- Control Buttons -->
+        <div class="controls">
+          <button id="connect-btn" class="btn btn-primary">
+            <svg
+              class="btn-icon"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+            >
+              <circle cx="12" cy="12" r="10"></circle>
+              <polygon points="10 8 16 12 10 16 10 8"></polygon>
+            </svg>
+            Start Talking
+          </button>
+
+          <button id="disconnect-btn" class="btn btn-danger" disabled>
+            <svg
+              class="btn-icon"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+            >
+              <circle cx="12" cy="12" r="10"></circle>
+              <line x1="15" y1="9" x2="9" y2="15"></line>
+              <line x1="9" y1="9" x2="15" y2="15"></line>
+            </svg>
+            Disconnect
+          </button>
+
+          <button id="skip-btn" class="btn btn-secondary" disabled>
+            <svg
+              class="btn-icon"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+            >
+              <polygon points="5 4 15 12 5 20 5 4"></polygon>
+              <line x1="19" y1="5" x2="19" y2="19"></line>
+            </svg>
+            Skip
+          </button>
+        </div>
+
+        <!-- Info Section -->
+        <div class="info-section">
+          <div class="info-card">
+            <h3>How It Works</h3>
+            <ol class="info-list">
+              <li>Click "Start Talking" to find a random person</li>
+              <li>Allow microphone access when prompted</li>
+              <li>Wait briefly while we connect you</li>
+              <li>Start talking! Audio is peer-to-peer encrypted</li>
+              <li>Click "Skip" to talk to someone else</li>
+            </ol>
+          </div>
+
+          <div class="info-card">
+            <h3>Features</h3>
+            <ul class="feature-list">
+              <li>
+                <svg
+                  class="feature-icon"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                >
+                  <rect
+                    x="3"
+                    y="11"
+                    width="18"
+                    height="11"
+                    rx="2"
+                    ry="2"
+                  ></rect>
+                  <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                </svg>
+                Secure peer-to-peer connection
+              </li>
+              <li>
+                <svg
+                  class="feature-icon"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                >
+                  <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
+                </svg>
+                Crystal clear audio quality
+              </li>
+              <li>
+                <svg
+                  class="feature-icon"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                >
+                  <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"></path>
+                </svg>
+                Instant random matching
+              </li>
+              <li>
+                <svg
+                  class="feature-icon"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                >
+                  <path
+                    d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"
+                  ></path>
+                </svg>
+                Anonymous voice conversations
+              </li>
+            </ul>
+          </div>
+        </div>
+      </main>
+
+      <!-- ============================================================================
+           FOOTER SECTION
+           ============================================================================ -->
+      <footer class="footer">
+        <div class="footer-content">
+          <p>&copy; 2024 Strenger Talk. All rights reserved.</p>
+          <div class="footer-links">
+            <a href="/about">About</a>
+            <a href="/contact">Contact</a>
+            <a href="/api/status" target="_blank">API Status</a>
+          </div>
+        </div>
+        <p class="footer-note">
+          🔒 All conversations are peer-to-peer encrypted and not recorded
+        </p>
+      </footer>
+    </div>
+
+    <!-- Hidden audio element for remote stream -->
+    <audio id="remote-audio" autoplay></audio>
+
     <!-- ============================================================================
-         HEADER SECTION
+         SCRIPTS
          ============================================================================ -->
-    <header>
-      <h1>Strenger Talk</h1>
-      <nav>
-        <ul>
-          <li><a href="/">Home</a></li>
-          <li><a href="/about">About</a></li>
-          <li><a href="/contact">Contact</a></li>
-        </ul>
-      </nav>
-    </header>
-
-    <hr />
-
-    <!-- ============================================================================
-         MAIN CONTENT SECTION
-         ============================================================================ -->
-    <main>
-      <h2>Welcome to Strenger Talk!</h2>
-
-      <p><%= message %></p>
-
-      <section>
-        <h3>Server Information</h3>
-        <ul>
-          <li><strong>Status:</strong> Running</li>
-          <li><strong>Server Time:</strong> <%= serverTime %></li>
-          <li><strong>Uptime:</strong> <%= uptime.toFixed(2) %> seconds</li>
-        </ul>
-      </section>
-
-      <section>
-        <h3>Available Routes</h3>
-        <h4>Views (HTML Pages)</h4>
-        <ul>
-          <li>GET / - Home page</li>
-          <li>GET /about - About page</li>
-          <li>GET /contact - Contact page</li>
-        </ul>
-
-        <h4>API Endpoints (JSON)</h4>
-        <ul>
-          <li>GET /api/status - Server status information</li>
-          <li>GET /api/info - Application information</li>
-          <li>POST /api/contact - Submit contact form</li>
-        </ul>
-      </section>
-    </main>
-
-    <hr />
-
-    <!-- ============================================================================
-         FOOTER SECTION
-         ============================================================================ -->
-    <footer>
-      <p>&copy; 2025 Strenger Talk | Express.js with MVC Pattern</p>
-    </footer>
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="/js/webrtc-client.js"></script>
   </body>
 </html>

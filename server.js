@@ -1,11 +1,11 @@
 /**
  * ============================================================================
- * Express.js Server Entry Point - MVC Pattern
+ * WebRTC Voice Chat Server - MVC Pattern with Socket.io
  * ============================================================================
  *
- * Purpose: Initialize and configure the main Express application server
- * Following MVC (Model-View-Controller) architectural pattern
- * This module sets up middleware, routes, and error handling
+ * Purpose: Initialize and configure WebRTC-based random voice chat server
+ * Following MVC pattern with real-time WebRTC signaling via Socket.io
+ * Features: Peer-to-peer audio, Redis queue management, TURN/STUN support
  *
  * Environment: Node.js
  * ============================================================================
@@ -16,7 +16,22 @@
 // ============================================================================
 
 const express = require("express");
+const http = require("http");
+const socketIo = require("socket.io");
+const cors = require("cors");
 const path = require("path");
+
+// ============================================================================
+// CONFIGURATION IMPORTS
+// ============================================================================
+
+const config = require("./config/config");
+const { redisClient, closeRedisConnection } = require("./config/redisConfig");
+const {
+  testConnection: testDbConnection,
+  initializeTables,
+  closePool,
+} = require("./config/dbConfig");
 
 // ============================================================================
 // ROUTE IMPORTS
@@ -24,6 +39,12 @@ const path = require("path");
 
 const homeRoutes = require("./app/routes/homeRoutes");
 const apiRoutes = require("./app/routes/apiRoutes");
+
+// ============================================================================
+// SERVICE IMPORTS
+// ============================================================================
+
+const SignalingService = require("./app/services/SignalingService");
 
 // ============================================================================
 // CONFIGURATION
@@ -36,15 +57,45 @@ const apiRoutes = require("./app/routes/apiRoutes");
 const app = express();
 
 /**
+ * Create HTTP server for Socket.io integration
+ * @type {http.Server}
+ */
+const server = http.createServer(app);
+
+/**
+ * Initialize Socket.io with CORS support
+ * @type {socketIo.Server}
+ */
+const io = socketIo(server, {
+  cors: {
+    origin: config.server.corsOrigin,
+    methods: ["GET", "POST"],
+    credentials: true,
+  },
+  transports: ["websocket", "polling"],
+  pingTimeout: 60000,
+  pingInterval: 25000,
+});
+
+/**
  * Server port configuration
- * Uses environment variable PORT if available, defaults to 3000
  * @type {number}
  */
-const PORT = process.env.PORT || 3000;
+const PORT = config.server.port;
 
 // ============================================================================
 // MIDDLEWARE SETUP
 // ============================================================================
+
+/**
+ * Middleware: Enable CORS for cross-origin requests
+ */
+app.use(
+  cors({
+    origin: process.env.CORS_ORIGIN || "*",
+    credentials: true,
+  })
+);
 
 /**
  * Middleware: Parse incoming JSON request bodies
@@ -70,6 +121,18 @@ app.set("views", path.join(__dirname, "app/views"));
  * Allows serving images, documents, and other static assets
  */
 app.use(express.static(path.join(__dirname, "public")));
+
+// ============================================================================
+// SOCKET.IO INITIALIZATION
+// ============================================================================
+
+/**
+ * Initialize WebRTC Signaling Service
+ * Handles all real-time communication for voice chat
+ */
+new SignalingService(io);
+
+console.log("✓ Socket.io and SignalingService initialized");
 
 // ============================================================================
 // ROUTE REGISTRATION
@@ -125,34 +188,102 @@ app.use((err, req, res, next) => {
 // ============================================================================
 
 /**
- * Start the Express server
- * Listen on the configured PORT and log startup information
+ * Initialize database and start server
  */
-app.listen(PORT, () => {
-  console.log(`
+const startServer = async () => {
+  try {
+    // Test database connection
+    const dbConnected = await testDbConnection();
+
+    if (dbConnected) {
+      // Initialize database tables
+      await initializeTables();
+    } else {
+      console.warn(
+        "⚠ PostgreSQL: Connection failed, continuing without database"
+      );
+    }
+
+    // Start HTTP server
+    server.listen(PORT, () => {
+      console.log(`
   ============================================================================
-  🚀 Express Server Started Successfully (MVC Pattern)
+  🎙️  WebRTC Voice Chat Server Started Successfully
   ============================================================================
   
   Server URL: http://localhost:${PORT}
-  Environment: ${process.env.NODE_ENV || "development"}
+  Environment: ${config.nodeEnv}
+  Log Level: ${config.logging.level}
   Port: ${PORT}
   Timestamp: ${new Date().toISOString()}
   
+  Features:
+  ✓ WebRTC peer-to-peer audio communication
+  ✓ Socket.io real-time signaling
+  ✓ Redis queue management
+  ✓ PostgreSQL persistent storage
+  ✓ TURN/STUN server support for NAT traversal
+  
   Application Structure:
   - /app/controllers  - Business logic
-  - /app/models       - Data models
+  - /app/services     - WebRTC signaling & queue management
   - /app/views        - EJS templates
   - /app/routes       - Route definitions
-  - /public           - Static files
+  - /config           - Config, Redis, PostgreSQL, TURN setup
+  - /public           - Static files & WebRTC client
   
   Press Ctrl+C to stop the server
   ============================================================================
-  `);
-});
+      `);
+    });
+  } catch (error) {
+    console.error("✗ Server Initialization Error:", error.message);
+    process.exit(1);
+  }
+};
+
+// Start the server
+startServer();
+
+// ============================================================================
+// GRACEFUL SHUTDOWN
+// ============================================================================
+
+/**
+ * Handle graceful shutdown on SIGTERM/SIGINT
+ */
+const gracefulShutdown = async () => {
+  console.log("\n⚠ Received shutdown signal, closing server gracefully...");
+
+  // Close HTTP server
+  server.close(async () => {
+    console.log("✓ HTTP server closed");
+
+    // Close Redis connections
+    await closeRedisConnection();
+
+    // Close PostgreSQL connections
+    await closePool();
+
+    // Close Socket.io connections
+    io.close(() => {
+      console.log("✓ Socket.io connections closed");
+      process.exit(0);
+    });
+  });
+
+  // Force shutdown after 10 seconds
+  setTimeout(() => {
+    console.error("✗ Forced shutdown after timeout");
+    process.exit(1);
+  }, 10000);
+};
+
+process.on("SIGTERM", gracefulShutdown);
+process.on("SIGINT", gracefulShutdown);
 
 // ============================================================================
 // MODULE EXPORTS
 // ============================================================================
 
-module.exports = app;
+module.exports = { app, server, io };

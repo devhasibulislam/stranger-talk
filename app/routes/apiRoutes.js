@@ -36,6 +36,14 @@ router.get("/status", apiController.getStatus);
 router.get("/info", apiController.getServerInfo);
 
 /**
+ * GET /stats - Voice Chat Statistics
+ * Route: /api/stats
+ * Controller: ApiController.getChatStats
+ * Response: JSON with chat statistics (active rooms, queue size, etc.)
+ */
+router.get("/stats", apiController.getChatStats);
+
+/**
  * POST /contact - Submit Contact Form
  * Route: /api/contact
  * Controller: ApiController.submitForm

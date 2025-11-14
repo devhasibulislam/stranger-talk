@@ -5,10 +5,15 @@
  *
  * Purpose: Handle business logic for API endpoints
  * Manages data retrieval and JSON responses for API routes
+ * Includes WebRTC voice chat statistics and monitoring
  *
  * MVC Pattern: Controller Layer
  * ============================================================================
  */
+
+const QueueManager = require("../services/QueueManager");
+const DatabaseService = require("../services/DatabaseService");
+const config = require("../../config/config");
 
 /**
  * Controller: Get Status
@@ -19,8 +24,12 @@
  * @param {Function} next - Express next middleware function
  * @returns {Object} JSON response with server status
  */
-exports.getStatus = (req, res, next) => {
+exports.getStatus = async (req, res, next) => {
   try {
+    // Get chat statistics from both Redis and PostgreSQL
+    const stats = await QueueManager.getStats();
+    const dbStats = await DatabaseService.getAllStatistics();
+
     const status = {
       status: "active",
       uptime: process.uptime(),
@@ -28,6 +37,13 @@ exports.getStatus = (req, res, next) => {
       timestamp: new Date().toISOString(),
       nodeVersion: process.version,
       platform: process.platform,
+      environment: config.nodeEnv,
+      voiceChat: {
+        activeRooms: stats.activeRooms,
+        usersInQueue: stats.currentQueueSize,
+        totalRoomsCreated: stats.totalRooms,
+        database: dbStats,
+      },
     };
 
     res.status(200).json(status);
@@ -49,13 +65,51 @@ exports.getServerInfo = (req, res, next) => {
   try {
     const info = {
       name: "Strenger Talk",
-      version: "1.0.0",
-      environment: process.env.NODE_ENV || "development",
+      version: "2.0.0",
+      description: "WebRTC-based random voice chat application",
+      environment: config.nodeEnv,
       timestamp: new Date().toISOString(),
-      message: "Express.js server running with MVC pattern",
+      features: [
+        "Peer-to-peer WebRTC audio",
+        "Real-time Socket.io signaling",
+        "Redis queue management",
+        "PostgreSQL persistent storage",
+        "TURN/STUN NAT traversal",
+        "Random user pairing",
+      ],
     };
 
     res.status(200).json(info);
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Controller: Get Voice Chat Statistics
+ * Returns current voice chat statistics
+ *
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ * @param {Function} next - Express next middleware function
+ * @returns {Object} JSON response with chat statistics
+ */
+exports.getChatStats = async (req, res, next) => {
+  try {
+    const stats = await QueueManager.getStats();
+
+    const response = {
+      success: true,
+      timestamp: new Date().toISOString(),
+      statistics: {
+        activeRooms: stats.activeRooms,
+        usersWaiting: stats.currentQueueSize,
+        totalRoomsCreated: stats.totalRooms,
+        serverUptime: process.uptime(),
+      },
+    };
+
+    res.status(200).json(response);
   } catch (error) {
     next(error);
   }
