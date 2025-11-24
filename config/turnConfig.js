@@ -31,13 +31,25 @@ const iceServers = [
   {
     urls: "stun:stun1.l.google.com:19302",
   },
+  {
+    urls: "stun:stun2.l.google.com:19302",
+  },
+  {
+    urls: "stun:stun3.l.google.com:19302",
+  },
+  {
+    urls: "stun:stun4.l.google.com:19302",
+  },
 
   // Additional public STUN servers for redundancy
   {
     urls: "stun:stun.stunprotocol.org:3478",
   },
+  {
+    urls: "stun:global.stun.twilio.com:3478",
+  },
 
-  // Free public TURN servers for better connectivity
+  // Free public TURN servers - OpenRelay (Metered)
   {
     urls: "turn:openrelay.metered.ca:80",
     username: "openrelayproject",
@@ -52,6 +64,33 @@ const iceServers = [
     urls: "turn:openrelay.metered.ca:443?transport=tcp",
     username: "openrelayproject",
     credential: "openrelayproject",
+  },
+  {
+    urls: "turns:openrelay.metered.ca:443",
+    username: "openrelayproject",
+    credential: "openrelayproject",
+  },
+
+  // Additional free TURN servers for better reliability
+  {
+    urls: "turn:relay.metered.ca:80",
+    username: "openrelayproject",
+    credential: "openrelayproject",
+  },
+  {
+    urls: "turn:relay.metered.ca:443",
+    username: "openrelayproject",
+    credential: "openrelayproject",
+  },
+  {
+    urls: "turn:relay.metered.ca:443?transport=tcp",
+    username: "openrelayproject",
+    credential: "openrelayproject",
+  },
+
+  // Numb STUN/TURN servers
+  {
+    urls: "stun:stun.relay.metered.ca:80",
   },
 
   // Coturn TURN server configuration (configure with your server)
@@ -77,6 +116,8 @@ const peerConnectionConfig = {
   iceServers: iceServers,
   iceCandidatePoolSize: 10, // Pre-gather ICE candidates
   iceTransportPolicy: "all", // Use both STUN and TURN (can be "relay" for TURN only)
+  bundlePolicy: "max-bundle", // Bundle all media on single transport
+  rtcpMuxPolicy: "require", // Multiplex RTP and RTCP on same port
 };
 
 /**

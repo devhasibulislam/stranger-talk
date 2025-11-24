@@ -28,6 +28,9 @@ class VoiceChatClient {
     // ICE servers (received from server)
     this.iceServers = [];
 
+    // ICE candidate queue (for candidates received before remote description)
+    this.iceCandidateQueue = [];
+
     // Connection state
     this.isConnecting = false;
     this.isConnected = false;
@@ -258,6 +261,13 @@ class VoiceChatClient {
         iceServers: this.iceServers,
         iceCandidatePoolSize: 10,
         iceTransportPolicy: 'all', // Use both STUN and TURN
+        bundlePolicy: 'max-bundle',
+        rtcpMuxPolicy: 'require',
+      });
+
+      console.log('Peer connection created with config:', {
+        iceServers: this.iceServers.length + ' servers',
+        iceTransportPolicy: 'all',
       });
 
       // Add local stream tracks to peer connection
@@ -277,23 +287,53 @@ class VoiceChatClient {
       // Handle ICE candidates
       this.peerConnection.onicecandidate = (event) => {
         if (event.candidate) {
-          console.log("✓ Sending ICE candidate to peer");
+          console.log("✓ Sending ICE candidate to peer:", {
+            type: event.candidate.type,
+            protocol: event.candidate.protocol,
+            address: event.candidate.address,
+            port: event.candidate.port,
+          });
           this.socket.emit("ice-candidate", {
             candidate: event.candidate,
             roomId: this.currentRoomId,
           });
+        } else {
+          console.log("✓ All ICE candidates have been sent");
         }
+      };
+
+      // Handle ICE gathering state changes
+      this.peerConnection.onicegatheringstatechange = () => {
+        console.log("ICE gathering state:", this.peerConnection.iceGatheringState);
       };
 
       // Handle remote stream
       this.peerConnection.ontrack = (event) => {
-        console.log("✓ Received remote stream");
-        console.log("Track kind:", event.track.kind);
-        console.log("Track enabled:", event.track.enabled);
+        console.log("✓ Received remote track");
+        console.log("Track details:", {
+          kind: event.track.kind,
+          id: event.track.id,
+          enabled: event.track.enabled,
+          muted: event.track.muted,
+          readyState: event.track.readyState,
+        });
         console.log("Streams:", event.streams);
         
         if (event.streams && event.streams[0]) {
           this.remoteStream = event.streams[0];
+          
+          // Log all tracks in the stream
+          const audioTracks = this.remoteStream.getAudioTracks();
+          console.log("Remote audio tracks:", audioTracks.length);
+          audioTracks.forEach((track, index) => {
+            console.log(`Audio track ${index}:`, {
+              id: track.id,
+              enabled: track.enabled,
+              muted: track.muted,
+              readyState: track.readyState,
+            });
+          });
+          
           this.playRemoteAudio();
           this.updateStatus("Connected! You can now talk", "success");
           this.isConnected = true;
@@ -330,7 +370,29 @@ class VoiceChatClient {
 
       // Handle ICE connection state changes
       this.peerConnection.oniceconnectionstatechange = () => {
-        console.log("ICE state:", this.peerConnection.iceConnectionState);
+        console.log("ICE connection state:", this.peerConnection.iceConnectionState);
+        
+        switch (this.peerConnection.iceConnectionState) {
+          case "checking":
+            console.log("Checking ICE candidates...");
+            break;
+          case "connected":
+            console.log("✓ ICE connection established");
+            break;
+          case "completed":
+            console.log("✓ ICE connection completed");
+            break;
+          case "failed":
+            console.error("✗ ICE connection failed");
+            this.showError("Connection failed. Please try again.");
+            break;
+          case "disconnected":
+            console.warn("⚠ ICE connection disconnected");
+            break;
+          case "closed":
+            console.log("ICE connection closed");
+            break;
+        }
       };
 
       console.log("✓ Peer connection setup complete");
@@ -347,16 +409,28 @@ class VoiceChatClient {
     try {
       console.log("Creating offer...");
       console.log("Local stream tracks:", this.localStream?.getTracks());
-      console.log("Peer connection senders:", this.peerConnection.getSenders());
+      
+      const senders = this.peerConnection.getSenders();
+      console.log("Peer connection senders:", senders.length);
+      senders.forEach((sender, index) => {
+        console.log(`Sender ${index}:`, {
+          track: sender.track ? sender.track.kind : 'null',
+          trackEnabled: sender.track ? sender.track.enabled : 'N/A',
+        });
+      });
 
       const offer = await this.peerConnection.createOffer({
         offerToReceiveAudio: true,
         offerToReceiveVideo: false,
+        voiceActivityDetection: true,
       });
 
-      console.log("Offer created:", offer);
+      console.log("Offer created with SDP:");
+      console.log(offer.sdp);
+      
       await this.peerConnection.setLocalDescription(offer);
       console.log("Local description set");
+      console.log("Signaling state:", this.peerConnection.signalingState);
 
       // Send offer to peer through signaling server
       this.socket.emit("offer", {
@@ -377,19 +451,42 @@ class VoiceChatClient {
   async handleOffer(offer) {
     try {
       console.log("Handling received offer...");
-      console.log("Offer SDP:", offer.sdp);
+      console.log("Offer SDP:");
+      console.log(offer.sdp);
+      console.log("Current signaling state:", this.peerConnection.signalingState);
 
       await this.peerConnection.setRemoteDescription(
         new RTCSessionDescription(offer)
       );
       console.log("Remote description set from offer");
+      console.log("Signaling state after setting remote description:", this.peerConnection.signalingState);
+
+      // Process any queued ICE candidates
+      console.log(`Processing ${this.iceCandidateQueue.length} queued ICE candidates...`);
+      while (this.iceCandidateQueue.length > 0) {
+        const queuedCandidate = this.iceCandidateQueue.shift();
+        try {
+          await this.peerConnection.addIceCandidate(
+            new RTCIceCandidate(queuedCandidate)
+          );
+          console.log("✓ Queued ICE candidate added");
+        } catch (err) {
+          console.error("Error adding queued ICE candidate:", err);
+        }
+      }
 
       // Create answer
-      const answer = await this.peerConnection.createAnswer();
-      console.log("Answer created:", answer);
+      const answer = await this.peerConnection.createAnswer({
+        offerToReceiveAudio: true,
+        offerToReceiveVideo: false,
+        voiceActivityDetection: true,
+      });
+      console.log("Answer created with SDP:");
+      console.log(answer.sdp);
       
       await this.peerConnection.setLocalDescription(answer);
       console.log("Local description set from answer");
+      console.log("Signaling state:", this.peerConnection.signalingState);
 
       // Send answer to peer through signaling server
       this.socket.emit("answer", {
@@ -420,6 +517,20 @@ class VoiceChatClient {
       console.log("Remote description:", this.peerConnection.remoteDescription);
       console.log("Connection state:", this.peerConnection.connectionState);
       console.log("ICE connection state:", this.peerConnection.iceConnectionState);
+      
+      // Process any queued ICE candidates
+      console.log(`Processing ${this.iceCandidateQueue.length} queued ICE candidates...`);
+      while (this.iceCandidateQueue.length > 0) {
+        const queuedCandidate = this.iceCandidateQueue.shift();
+        try {
+          await this.peerConnection.addIceCandidate(
+            new RTCIceCandidate(queuedCandidate)
+          );
+          console.log("✓ Queued ICE candidate added");
+        } catch (err) {
+          console.error("Error adding queued ICE candidate:", err);
+        }
+      }
     } catch (error) {
       console.error("✗ Error handling answer:", error);
       this.showError("Failed to handle connection answer");
@@ -432,13 +543,33 @@ class VoiceChatClient {
   async handleIceCandidate(candidate) {
     try {
       if (candidate && this.peerConnection) {
-        await this.peerConnection.addIceCandidate(
-          new RTCIceCandidate(candidate)
-        );
-        console.log("✓ ICE candidate added");
+        // Check if remote description is set
+        if (this.peerConnection.remoteDescription && this.peerConnection.remoteDescription.type) {
+          await this.peerConnection.addIceCandidate(
+            new RTCIceCandidate(candidate)
+          );
+          console.log("✓ ICE candidate added:", {
+            type: candidate.type,
+            protocol: candidate.protocol,
+          });
+          
+          // Process any queued candidates
+          while (this.iceCandidateQueue.length > 0) {
+            const queuedCandidate = this.iceCandidateQueue.shift();
+            await this.peerConnection.addIceCandidate(
+              new RTCIceCandidate(queuedCandidate)
+            );
+            console.log("✓ Queued ICE candidate added");
+          }
+        } else {
+          // Queue the candidate until remote description is set
+          console.log("⏳ Queueing ICE candidate (remote description not set yet)");
+          this.iceCandidateQueue.push(candidate);
+        }
       }
     } catch (error) {
       console.error("✗ Error adding ICE candidate:", error);
+      console.error("Candidate:", candidate);
     }
   }
 
@@ -448,9 +579,31 @@ class VoiceChatClient {
   playRemoteAudio() {
     const remoteAudio = document.getElementById("remote-audio");
     if (remoteAudio && this.remoteStream) {
+      console.log("Setting up remote audio playback...");
+      
       remoteAudio.srcObject = this.remoteStream;
       remoteAudio.volume = 1.0; // Set volume to maximum
       remoteAudio.muted = false; // Ensure not muted
+      
+      // Log stream details
+      const audioTracks = this.remoteStream.getAudioTracks();
+      console.log("Remote stream audio tracks:", audioTracks.length);
+      audioTracks.forEach((track, index) => {
+        console.log(`Setting up audio track ${index}:`, {
+          id: track.id,
+          enabled: track.enabled,
+          muted: track.muted,
+          readyState: track.readyState,
+        });
+        
+        // Ensure track is enabled
+        track.enabled = true;
+        
+        // Listen for track events
+        track.onended = () => console.log(`Track ${index} ended`);
+        track.onmute = () => console.log(`Track ${index} muted`);
+        track.onunmute = () => console.log(`Track ${index} unmuted`);
+      });
       
       // Try to play immediately
       const playPromise = remoteAudio.play();
@@ -459,9 +612,12 @@ class VoiceChatClient {
         playPromise
           .then(() => {
             console.log("✓ Remote audio playing successfully");
-            console.log("Audio tracks:", this.remoteStream.getAudioTracks());
-            console.log("Audio element volume:", remoteAudio.volume);
-            console.log("Audio element muted:", remoteAudio.muted);
+            console.log("Audio element state:", {
+              volume: remoteAudio.volume,
+              muted: remoteAudio.muted,
+              paused: remoteAudio.paused,
+              readyState: remoteAudio.readyState,
+            });
           })
           .catch((error) => {
             console.error("✗ Error playing remote audio:", error);
@@ -576,6 +732,9 @@ class VoiceChatClient {
     if (this.ui.volumeFill) {
       this.ui.volumeFill.style.width = "0%";
     }
+
+    // Clear ICE candidate queue
+    this.iceCandidateQueue = [];
 
     // Reset state
     this.currentRoomId = null;
